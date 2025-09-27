@@ -1,0 +1,53 @@
+import telebot
+from flask import Flask
+from threading import Thread
+import os
+
+# توکن و آیدی ادمین
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8318379814:AAEFoxx50zppojGFW91Z4zpaMR3ffTPVOPk")
+ADMIN_ID = 7411932454
+
+bot = telebot.TeleBot(BOT_TOKEN)
+
+# حافظه ساده برای ذخیره مراحل
+user_states = {}
+
+# مرحله اول: شروع
+@bot.message_handler(commands=['start'])
+def start(message):
+    user_states[message.chat.id] = {'step': 1}
+    bot.send_message(message.chat.id, "سلام! لطفاً نام خود را وارد کنید:")
+
+# مرحله دوم: گرفتن نام
+@bot.message_handler(func=lambda m: user_states.get(m.chat.id, {}).get('step') == 1)
+def get_name(message):
+    user_states[message.chat.id]['name'] = message.text
+    user_states[message.chat.id]['step'] = 2
+    bot.send_message(message.chat.id, "ممنون! حالا لطفاً بازخورد خود را بنویسید:")
+
+# مرحله سوم: گرفتن بازخورد و ارسال به ادمین
+@bot.message_handler(func=lambda m: user_states.get(m.chat.id, {}).get('step') == 2)
+def get_feedback(message):
+    name = user_states[message.chat.id]['name']
+    feedback = message.text
+    bot.send_message(message.chat.id, "بازخورد شما ثبت شد. ممنون از شما! 🙏")
+    bot.send_message(ADMIN_ID, f"📩 بازخورد جدید:\n👤 نام: {name}\n💬 متن: {feedback}")
+    user_states.pop(message.chat.id)
+
+# سرور Flask برای پینگ دائمی
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "I'm alive!"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
+
+Thread(target=run).start()
+
+# اجرای ربات
+def polling():
+    bot.infinity_polling()
+
+Thread(target=polling).start()
